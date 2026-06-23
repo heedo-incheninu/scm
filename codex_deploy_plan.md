@@ -179,15 +179,39 @@ data/scm.db
 
 - GitHub 저장소를 Streamlit Cloud에 연결해 공개 URL을 만든다.
 
+### 연결할 계정 및 저장소 지정
+
+Streamlit Cloud에서 연결할 GitHub 저장소는 다음으로 지정한다.
+
+```text
+GitHub account / organization: heedo-incheninu
+Repository: heedo-incheninu/scm
+Branch: main
+Main file path: app.py
+App URL name: scm
+Python version: 3.11
+```
+
+Streamlit Cloud 설정 화면에서는 다음 값으로 입력한다.
+
+| 항목 | 입력값 |
+|---|---|
+| Repository | `heedo-incheninu/scm` |
+| Branch | `main` |
+| Main file path | `app.py` |
+| Python version | `3.11` |
+| Requirements file | `requirements.txt` |
+
 작업 순서:
 
 1. GitHub에 최신 코드 push
 2. Streamlit Cloud에서 New app 생성
-3. Repository 선택
-4. Main file path를 `app.py`로 설정
-5. Python 버전은 3.11 이상 사용
-6. Secrets에 `OPENAI_API_KEY`, `SCM_OPENAI_MODEL` 등록
-7. Deploy 실행
+3. Repository를 `heedo-incheninu/scm`으로 선택
+4. Branch를 `main`으로 선택
+5. Main file path를 `app.py`로 설정
+6. Python 버전은 3.11 이상 사용
+7. Secrets에 `OPENAI_API_KEY`, `SCM_OPENAI_MODEL` 등록
+8. Deploy 실행
 
 완료 기준:
 
@@ -253,4 +277,3 @@ data/scm.db
 - API 키가 없어도 앱이 중단되지 않는다.
 - 배포 환경에서 비밀키가 코드나 저장소에 노출되지 않는다.
 - 발표자가 8단계 사용자 흐름을 끊김 없이 시연할 수 있다.
-
