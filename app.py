@@ -515,6 +515,19 @@ def format_percent_whole(value: float) -> str:
     return f"{value:.0%}"
 
 
+def get_config_value(key: str, default: str = "") -> str:
+    """환경변수 또는 Streamlit Cloud Secrets에서 설정값을 안전하게 읽는다."""
+
+    if os.getenv(key):
+        return str(os.getenv(key))
+    try:
+        if key in st.secrets:
+            return str(st.secrets[key])
+    except Exception:
+        return default
+    return default
+
+
 def prepare_inventory_dashboard(allocation: pd.DataFrame) -> pd.DataFrame:
     """홈 화면용 재고 상태와 미충족 금액을 계산한다."""
 
@@ -1381,8 +1394,8 @@ with st.sidebar.expander("OpenAI 계정 연결", expanded=False):
     )
     st.link_button("OpenAI API 키 발급", "https://platform.openai.com/api-keys")
 
-api_key = entered_api_key or os.getenv("OPENAI_API_KEY")
-openai_model = os.getenv("SCM_OPENAI_MODEL", DEFAULT_MODEL)
+api_key = entered_api_key or get_config_value("OPENAI_API_KEY")
+openai_model = get_config_value("SCM_OPENAI_MODEL", DEFAULT_MODEL)
 result = run_analysis(products, sales, scenario, budget_ratio)
 service_allocation, service_summary, service_full_budget = run_service_level_allocation(
     result.safety_stock,
