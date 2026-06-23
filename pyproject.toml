@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "scm-risk-platform"
+version = "0.1.0"
+description = "해상물류 리드타임 리스크 기반 SCM 의사결정 PoC"
+readme = "readme.md"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.26,<3",
+  "openai>=2.0,<3",
+  "openpyxl>=3.1,<4",
+  "pandas>=2.2,<3",
+  "plotly>=6.0,<7",
+  "streamlit>=1.40,<2",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3,<9",
+  "ruff>=0.9,<1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scm"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
