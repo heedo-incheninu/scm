@@ -121,6 +121,7 @@
 - [x] `tests/test_service_level_allocation.py` 추가
 - [x] `tests/test_gscpi.py` 추가
 - [x] Streamlit 신규 페이지 스모크 테스트 확장
+- [x] 한눈에 보기의 예산 배분 시뮬레이션 4개 전략 카드를 비교 막대그래프로 전환
 
 ## 현재 범위에서 제외
 

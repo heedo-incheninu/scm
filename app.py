@@ -575,14 +575,72 @@ def render_dashboard_header(
     )
 
 
-def render_strategy_mini_cards(current_comparison: pd.DataFrame) -> None:
-    for row in current_comparison.itertuples():
-        with st.container(border=True):
-            st.metric(
-                str(row.strategy_label),
-                format_percent_whole(float(row.weighted_fulfillment)),
+def make_current_strategy_figure(current_comparison: pd.DataFrame) -> go.Figure:
+    strategy_order = ["균등 배분", "비례 배분", "우선순위 배분", "서비스수준 배분"]
+    colors = {
+        "균등 배분": "#94a3b8",
+        "비례 배분": "#2563eb",
+        "우선순위 배분": "#06b6d4",
+        "서비스수준 배분": "#16a34a",
+    }
+    frame = (
+        current_comparison.set_index("strategy_label")
+        .reindex(strategy_order)
+        .dropna(subset=["weighted_fulfillment"])
+        .reset_index()
+    )
+    fulfillment = frame["weighted_fulfillment"].astype(float)
+    fully_funded = frame["fully_funded_skus"].astype(int)
+    labels = [
+        f"{format_percent_whole(value)}<br>완전 확보 {count}개"
+        for value, count in zip(fulfillment, fully_funded, strict=True)
+    ]
+    axis_max = min(1.0, max(0.3, float(fulfillment.max()) * 1.35))
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=frame["strategy_label"],
+                y=fulfillment,
+                marker={
+                    "color": [colors[label] for label in frame["strategy_label"]],
+                    "line": {"color": "rgba(255,255,255,0.9)", "width": 1},
+                },
+                customdata=fully_funded,
+                text=labels,
+                textposition="outside",
+                cliponaxis=False,
+                hovertemplate=(
+                    "%{x}<br>중요 품목 보호 수준: %{y:.1%}"
+                    "<br>완전 확보: %{customdata}개 SKU<extra></extra>"
+                ),
             )
-            st.caption(f"완전 확보 {int(row.fully_funded_skus)}개 SKU")
+        ]
+    )
+    fig.update_layout(
+        template="plotly_white",
+        height=360,
+        margin={"l": 10, "r": 10, "b": 45, "t": 25},
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(248,250,252,0.55)",
+        showlegend=False,
+        bargap=0.3,
+        xaxis={
+            "title": None,
+            "categoryorder": "array",
+            "categoryarray": strategy_order,
+            "tickfont": {"size": 12, "color": "#334155"},
+        },
+        yaxis={
+            "title": "중요 품목 보호 수준",
+            "tickformat": ".0%",
+            "range": [0, axis_max],
+            "gridcolor": "#e2e8f0",
+            "zeroline": False,
+        },
+        font={"family": "Arial, sans-serif", "color": "#0f172a"},
+    )
+    return fig
 
 
 def render_action_cards(inventory: pd.DataFrame) -> None:
@@ -1516,7 +1574,11 @@ if page == "한눈에 보기":
         with st.container(border=True):
             st.markdown("#### 예산 배분 시뮬레이션")
             st.caption("현재 예산 조건에서 네 가지 배분 방식의 중요 품목 보호 수준입니다.")
-            render_strategy_mini_cards(current_comparison)
+            st.plotly_chart(
+                make_current_strategy_figure(current_comparison),
+                width="stretch",
+                config={"displayModeBar": False},
+            )
             st.caption("상세 추세는 전략 비교 탭에서 10%~100% 예산 조건으로 확인합니다.")
 
     st.subheader("우선 조치 SKU")
