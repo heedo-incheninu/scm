@@ -1351,6 +1351,7 @@ def render_scenario_evidence(scenario: str) -> None:
         <div class="source-box">
         <b>현재 가정</b>: {selected['description']}<br>
         <b>리드타임 배수</b>: {selected['multiplier']}배<br>
+        <b>적용 방식</b>: 평균 리드타임에만 적용하며 리드타임 표준편차에는 중복 적용하지 않음<br>
         <b>근거</b>: {source_text}
         </div>
         """,
@@ -1815,6 +1816,7 @@ elif page == "필요 재고":
             "- `z`: 목표 서비스 수준에 따른 안전계수\n"
             "- `d`, `σd`: 월평균 수요와 수요 표준편차\n"
             "- `L`, `σL`: 평균 리드타임과 리드타임 표준편차\n\n"
+            "위기배수는 평균 리드타임 `L`에만 적용하며 `σL`에는 다시 곱하지 않습니다. "
             "수요 또는 배송 기간이 더 불안정할수록 안전재고가 커집니다."
         )
     safety = result.safety_stock.copy()

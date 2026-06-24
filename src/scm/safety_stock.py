@@ -15,6 +15,7 @@ def calculate_safety_stock(metrics: pd.DataFrame, scenario: str) -> pd.DataFrame
 
     공식: z × sqrt(L × σd² + d² × σL²)
     d와 σd는 월 수요, L과 σL은 월 단위 리드타임이다.
+    위기배수는 평균 리드타임 L에만 적용하며 리드타임 표준편차 σL에는 적용하지 않는다.
     """
 
     if scenario not in SCENARIOS:
@@ -37,10 +38,9 @@ def calculate_safety_stock(metrics: pd.DataFrame, scenario: str) -> pd.DataFrame
     multiplier = float(SCENARIOS[scenario]["multiplier"])
     result["scenario"] = scenario
     result["scenario_label"] = str(SCENARIOS[scenario]["label"])
+    result["lead_time_multiplier"] = multiplier
     result["lead_time_months"] = result["lead_time_days"] * multiplier / DAYS_PER_MONTH
-    result["lead_time_std_months"] = (
-        result["lead_time_std_days"] * multiplier / DAYS_PER_MONTH
-    )
+    result["lead_time_std_months"] = result["lead_time_std_days"] / DAYS_PER_MONTH
     result["z_score"] = result["service_level"].map(NormalDist().inv_cdf)
     variance = (
         result["lead_time_months"] * result["demand_std"].pow(2)
@@ -56,4 +56,3 @@ def calculate_safety_stock(metrics: pd.DataFrame, scenario: str) -> pd.DataFrame
         result["demand_mean"] * result["lead_time_months"] + result["safety_stock"]
     ).astype(int)
     return result
-
