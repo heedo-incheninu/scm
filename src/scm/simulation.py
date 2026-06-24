@@ -38,6 +38,15 @@ DEFAULT_PRODUCT_CATALOG = [
     ("스마트 물류 태그", "물류장비"),
 ]
 
+DEFAULT_ROUTES = (
+    "상하이-부산",
+    "선전-부산",
+    "호치민-부산",
+    "싱가포르-부산",
+    "로테르담-부산",
+    "로스앤젤레스-부산",
+)
+
 
 def _demand_pattern(
     rng: np.random.Generator,
@@ -95,6 +104,7 @@ def generate_sample_data(seed: int = 20260622) -> tuple[pd.DataFrame, pd.DataFra
                     "sku_id": sku_id,
                     "name": product_name,
                     "category": category,
+                    "route": DEFAULT_ROUTES[(sku_number - 1) % len(DEFAULT_ROUTES)],
                     "unit_cost": round(unit_cost, 2),
                     "lead_time_days": round(float(rng.normal(44.0, 2.5)), 2),
                     "lead_time_std_days": round(float(rng.normal(10.5, 0.8)), 2),

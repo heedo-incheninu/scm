@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS products (
     sku_id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     category TEXT NOT NULL,
+    route TEXT NOT NULL DEFAULT '미지정',
     unit_cost REAL NOT NULL CHECK (unit_cost > 0),
     lead_time_days REAL NOT NULL CHECK (lead_time_days > 0),
     lead_time_std_days REAL NOT NULL CHECK (lead_time_std_days >= 0),
@@ -30,6 +31,19 @@ CREATE TABLE IF NOT EXISTS sales (
 """
 
 
+def _migrate_products_schema(connection: sqlite3.Connection) -> None:
+    """기존 DB에 선택형 항로 열을 추가해 하위 호환성을 유지한다."""
+
+    columns = {
+        str(row[1])
+        for row in connection.execute("PRAGMA table_info(products)").fetchall()
+    }
+    if "route" not in columns:
+        connection.execute(
+            "ALTER TABLE products ADD COLUMN route TEXT NOT NULL DEFAULT '미지정'"
+        )
+
+
 def initialize_database(
     database_path: str | Path,
     *,
@@ -44,6 +58,7 @@ def initialize_database(
     with sqlite3.connect(path) as connection:
         connection.execute("PRAGMA foreign_keys = ON")
         connection.executescript(SCHEMA)
+        _migrate_products_schema(connection)
         row_count = connection.execute("SELECT COUNT(*) FROM products").fetchone()[0]
         if replace or row_count == 0:
             connection.execute("DELETE FROM sales")
@@ -65,4 +80,3 @@ def load_data(database_path: str | Path) -> tuple[pd.DataFrame, pd.DataFrame]:
             "SELECT * FROM sales ORDER BY sku_id, month", connection, parse_dates=["month"]
         )
     return products, sales
-

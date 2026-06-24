@@ -19,6 +19,15 @@ sku_id,name,category,unit_cost,lead_time_days,lead_time_std_days,
 service_level,current_stock,month,quantity
 ```
 
+선택 열:
+
+```text
+route
+```
+
+`route`는 SKU의 대표 해상 항로입니다. 열이 없거나 값이 비어 있으면 기존 재고 분석은
+정상 실행되고 항로 집중도 경고만 `정보 없음`으로 표시됩니다.
+
 가상 데이터를 다시 만들려면 프로젝트 루트에서 실행합니다.
 
 ```powershell

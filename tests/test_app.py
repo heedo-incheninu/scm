@@ -33,6 +33,10 @@ def test_all_navigation_pages_load_without_exception(monkeypatch):
         app.query_params["page"] = page
         app.run()
         assert not app.exception, page
+        if page in {"scenario", "compare"}:
+            assert any(
+                "항로 기반 동시위험 집중도" in block.value for block in app.subheader
+            )
 
 
 def test_bundled_csv_can_be_selected_in_the_ui():

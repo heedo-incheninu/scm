@@ -24,6 +24,7 @@ from scm.csv_import import CSV_COLUMNS, load_inventory_csv
 from scm.database import initialize_database, load_data
 from scm.diagnosis import generate_diagnosis
 from scm.gscpi import GscpiRecommendation, load_gscpi_recommendation
+from scm.route_risk import RouteRiskResult, calculate_route_concentration
 from scm.service_level_allocation import (
     DEFAULT_CARRYING_COST_RATE,
     allocate_service_levels,
@@ -801,6 +802,86 @@ def render_service_level_cards(
     columns[4].metric("예상손실", format_currency(float(service_summary["expected_loss"])))
 
 
+def make_route_concentration_figure(route_risk: RouteRiskResult) -> go.Figure:
+    """항로별 보호 예산 비중을 가로 막대그래프로 표시한다."""
+
+    frame = route_risk.by_route.sort_values("budget_share", ascending=True)
+    colors = [
+        "#ef4444" if share > 0.50 else "#f59e0b" if share > 0.25 else "#2563eb"
+        for share in frame["budget_share"]
+    ]
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=frame["budget_share"],
+                y=frame["route"],
+                orientation="h",
+                marker={"color": colors},
+                text=frame["budget_share"].map(lambda value: f"{value:.0%}"),
+                textposition="outside",
+                cliponaxis=False,
+                customdata=frame["allocated_budget"],
+                hovertemplate=(
+                    "%{y}<br>예산 비중: %{x:.1%}"
+                    "<br>보호 예산: ₩%{customdata:,.0f}<extra></extra>"
+                ),
+            )
+        ]
+    )
+    fig.update_layout(
+        title={"text": "항로별 보호 예산 비중", "x": 0.02, "font": {"size": 18}},
+        template="plotly_white",
+        height=max(320, 75 + len(frame) * 42),
+        margin={"l": 10, "r": 35, "b": 35, "t": 55},
+        paper_bgcolor="rgba(0,0,0,0)",
+        showlegend=False,
+        xaxis={
+            "title": "확인 가능한 항로 예산 내 비중",
+            "tickformat": ".0%",
+            "range": [0, min(1.0, max(0.35, float(frame["budget_share"].max()) * 1.18))],
+            "gridcolor": "#e2e8f0",
+        },
+        yaxis={"title": None},
+    )
+    return fig
+
+
+def render_route_risk_panel(route_risk: RouteRiskResult) -> None:
+    """항로 집중도 KPI, 경고와 예산 분포를 한 패널에 표시한다."""
+
+    st.subheader("항로 기반 동시위험 집중도")
+    st.caption(
+        "같은 항로를 공유하는 SKU는 운하 차단·항만 적체·기상 충격에 동시에 영향을 받을 수 "
+        "있습니다. 이 지표는 안전재고를 바꾸지 않고 보호 예산의 항로 집중만 경고합니다."
+    )
+    if route_risk.hhi is None:
+        st.info(route_risk.message)
+        return
+
+    columns = st.columns(4, gap="small")
+    columns[0].metric("항로 HHI", f"{route_risk.hhi:.3f}")
+    columns[1].metric("집중 상태", route_risk.status)
+    columns[2].metric("확인 항로", f"{route_risk.route_count:,}개")
+    columns[3].metric("항로 정보 확인율", f"{route_risk.coverage_ratio:.0%}")
+
+    if route_risk.status == "위험":
+        st.error(f"단일 항로 집중 위험이 큽니다. {route_risk.message}")
+    elif route_risk.status == "주의":
+        st.warning(f"항로 집중도를 확인해야 합니다. {route_risk.message}")
+    else:
+        st.success(f"보호 예산이 비교적 분산되어 있습니다. {route_risk.message}")
+
+    st.plotly_chart(
+        make_route_concentration_figure(route_risk),
+        width="stretch",
+        config={"displayModeBar": False},
+    )
+    st.caption(
+        "초기 경고 기준: HHI 0.25 이하 양호, 0.25 초과~0.50 이하 주의, 0.50 초과 위험. "
+        "이 기준은 비교용 가정이며 공급사·항만·대체 항로 정보와 함께 판단해야 합니다."
+    )
+
+
 def make_service_level_distribution_figure(service_allocation: pd.DataFrame) -> go.Figure:
     order = ["99%", "95%", "90%", "미선택"]
     counts = service_allocation["service_level_label"].value_counts().reindex(order, fill_value=0)
@@ -1461,6 +1542,7 @@ service_allocation, service_summary, service_full_budget = run_service_level_all
     budget_ratio,
     carrying_cost_rate,
 )
+route_risk = calculate_route_concentration(service_allocation)
 comparison = compare_strategies(result.safety_stock, carrying_cost_rate=carrying_cost_rate)
 current_comparison = compare_strategies(
     result.safety_stock,
@@ -1493,6 +1575,10 @@ st.sidebar.divider()
 st.sidebar.caption(f"데이터: {data_source_label}")
 st.sidebar.caption(f"{len(products)}개 SKU · {sales['month'].nunique()}개월")
 st.sidebar.caption(f"재고보유비율: {carrying_cost_percent}%")
+if route_risk.hhi is None:
+    st.sidebar.caption("항로 집중도: 정보 없음")
+else:
+    st.sidebar.caption(f"항로 집중도: {route_risk.status} · HHI {route_risk.hhi:.3f}")
 st.sidebar.caption("⚠️ 가상 데이터 기반 의사결정 연습용")
 
 if page == "한눈에 보기":
@@ -1652,6 +1738,7 @@ elif page == "데이터 확인":
             "sku_id",
             "name",
             "category",
+            "route",
             "unit_cost",
             "current_stock",
             "lead_time_days",
@@ -1668,6 +1755,7 @@ elif page == "데이터 확인":
             "sku_id": "품목 코드",
             "name": "품목명",
             "category": "카테고리",
+            "route": "해상 항로",
             "unit_cost": st.column_config.NumberColumn("단가", format="₩%.0f"),
             "current_stock": "현재고",
             "lead_time_days": st.column_config.NumberColumn("평균 리드타임", format="%.1f일"),
@@ -1735,6 +1823,7 @@ elif page == "위험 시나리오":
         "실제 의사결정에서는 공급사 납기, 운송 중 재고, 대체 운송 수단을 함께 확인해야 합니다."
     )
     render_scenario_evidence(scenario)
+    render_route_risk_panel(route_risk)
     render_limitations()
 
 elif page == "품목 중요도":
@@ -2085,6 +2174,7 @@ elif page == "전략 비교":
         "위험가중 충족률은 필요한 재고금액과 ABC-XYZ 중요도를 함께 반영합니다. "
         "따라서 중요한 품목을 먼저 보호할수록 높아집니다."
     )
+    render_route_risk_panel(route_risk)
     st.subheader("What-if 위기 시뮬레이터")
     st.markdown(
         '<div class="whatif-note"><b>읽는 법</b><br>'
@@ -2217,7 +2307,8 @@ else:
     st.code(",".join(CSV_COLUMNS), language="text")
     st.write(
         "한 행은 한 SKU의 한 달 판매량입니다. 같은 SKU의 제품 정보는 매월 동일해야 하며 "
-        "최소 2개월의 판매 이력이 필요합니다."
+        "최소 2개월의 판매 이력이 필요합니다. `route`는 선택 열이며, 없으면 기존 분석은 "
+        "정상 실행되고 항로 집중도만 ‘정보 없음’으로 표시됩니다."
     )
     sample_file = CSV_DIRECTORY / "01_electronics_stable.csv"
     if sample_file.exists():

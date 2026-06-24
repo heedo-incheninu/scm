@@ -10,6 +10,8 @@ def test_database_round_trip(tmp_path):
     assert len(products) == 30
     assert len(sales) == 720
     assert products["sku_id"].is_unique
+    assert products["route"].notna().all()
+    assert products["route"].nunique() > 1
     assert not sales[["sku_id", "month"]].duplicated().any()
 
 
@@ -21,4 +23,3 @@ def test_initialization_is_idempotent(tmp_path):
 
     assert len(products) == 30
     assert len(sales) == 720
-

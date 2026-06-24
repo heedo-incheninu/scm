@@ -10,3 +10,4 @@ htmlcov/
 .streamlit/secrets.toml
 *.db
 data/*.csv
+streamlit*.log

@@ -7,7 +7,8 @@ from typing import IO
 
 import pandas as pd
 
-PRODUCT_COLUMNS = [
+DEFAULT_ROUTE = "미지정"
+REQUIRED_PRODUCT_COLUMNS = [
     "sku_id",
     "name",
     "category",
@@ -17,21 +18,28 @@ PRODUCT_COLUMNS = [
     "service_level",
     "current_stock",
 ]
+OPTIONAL_PRODUCT_COLUMNS = ["route"]
+PRODUCT_COLUMNS = [*REQUIRED_PRODUCT_COLUMNS, *OPTIONAL_PRODUCT_COLUMNS]
 SALES_COLUMNS = ["sku_id", "month", "quantity"]
 CSV_COLUMNS = [*PRODUCT_COLUMNS, "month", "quantity"]
+REQUIRED_CSV_COLUMNS = [*REQUIRED_PRODUCT_COLUMNS, "month", "quantity"]
 
 
 def load_inventory_csv(source: str | Path | IO[bytes]) -> tuple[pd.DataFrame, pd.DataFrame]:
     """제품 정보가 판매 이력 행마다 반복되는 업로드 CSV를 읽는다."""
 
     frame = pd.read_csv(source)
-    missing = set(CSV_COLUMNS) - set(frame.columns)
+    missing = set(REQUIRED_CSV_COLUMNS) - set(frame.columns)
     if missing:
         raise ValueError(f"CSV 필수 열 누락: {', '.join(sorted(missing))}")
+    if "route" not in frame.columns:
+        frame["route"] = DEFAULT_ROUTE
     frame = frame.loc[:, CSV_COLUMNS].copy()
     if frame.empty:
         raise ValueError("CSV에 데이터가 없습니다.")
     frame["sku_id"] = frame["sku_id"].astype(str).str.strip()
+    frame["route"] = frame["route"].fillna(DEFAULT_ROUTE).astype(str).str.strip()
+    frame.loc[frame["route"] == "", "route"] = DEFAULT_ROUTE
     frame["month"] = pd.to_datetime(frame["month"], errors="coerce")
     numeric_columns = [
         "unit_cost",
@@ -43,7 +51,7 @@ def load_inventory_csv(source: str | Path | IO[bytes]) -> tuple[pd.DataFrame, pd
     ]
     for column in numeric_columns:
         frame[column] = pd.to_numeric(frame[column], errors="coerce")
-    if frame[CSV_COLUMNS].isna().any().any() or (frame["sku_id"] == "").any():
+    if frame[REQUIRED_CSV_COLUMNS].isna().any().any() or (frame["sku_id"] == "").any():
         raise ValueError("빈 값 또는 변환할 수 없는 날짜·숫자가 있습니다.")
     if frame[["sku_id", "month"]].duplicated().any():
         raise ValueError("같은 SKU와 월이 중복되어 있습니다.")
@@ -70,6 +78,9 @@ def load_inventory_csv(source: str | Path | IO[bytes]) -> tuple[pd.DataFrame, pd
 def flatten_inventory_data(products: pd.DataFrame, sales: pd.DataFrame) -> pd.DataFrame:
     """제품과 판매 이력을 업로드 가능한 단일 CSV 형태로 결합한다."""
 
-    frame = sales.merge(products, on="sku_id", validate="many_to_one")
+    product_frame = products.copy()
+    if "route" not in product_frame.columns:
+        product_frame["route"] = DEFAULT_ROUTE
+    product_frame["route"] = product_frame["route"].fillna(DEFAULT_ROUTE)
+    frame = sales.merge(product_frame, on="sku_id", validate="many_to_one")
     return frame.loc[:, CSV_COLUMNS].sort_values(["sku_id", "month"]).reset_index(drop=True)
-
