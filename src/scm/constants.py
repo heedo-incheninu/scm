@@ -27,14 +27,14 @@ SCENARIOS: Final[dict[str, dict[str, float | str]]] = {
         "label": "고충격",
         "multiplier": 1.8,
         "description": "2021~2022년 아시아-유럽 운송 지연 수준",
-        "source": "Flexport 공개 리드타임 사례(Plan.md 조사 기록)",
+        "source": "업계 맥락 기반 시나리오 입력값. 사용자가 상황에 따라 조정 가능",
         "source_url": "",
     },
     "extreme": {
         "label": "극단 충격",
         "multiplier": 2.2,
         "description": "2021~2022년 아시아-미서부 최악 지연 수준",
-        "source": "Flexport 공개 리드타임 사례(Plan.md 조사 기록)",
+        "source": "업계 맥락 기반 시나리오 입력값. 사용자가 상황에 따라 조정 가능",
         "source_url": "",
     },
 }
