@@ -20,6 +20,8 @@ def test_demo_diagnosis_works_without_api_key(sample_data):
     assert diagnosis.mode == "demo"
     assert "위험 요약" in diagnosis.text
     assert "판단의 한계" in diagnosis.text
+    assert "**" not in diagnosis.text
+    assert "###" not in diagnosis.text
 
 
 def test_prompt_contains_only_aggregated_decision_context(sample_data):
